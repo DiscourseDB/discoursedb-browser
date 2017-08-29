@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Trees And Panels</title>
+  <script type="text/javascript" src="layout-master/demos/js/jquery.js"></script>
+  <script type="text/javascript" src="layout-master/demos/js/jquery-ui.js"></script>
+
+  <meta name="google-signin-client_id" content="336511606727-reg55r59io04v8n4c6hjpo9t8prfrf20.apps.googleusercontent.com">
+  <link rel="stylesheet" href="vendors/jstree/themes/default/style.min.css"/>
+  <link rel="stylesheet" href="vendors/jquery-ui/jquery-ui.css"/>
+  <!--<link rel="stylesheet" href="vendors/colresizable/css/main.css"/>-->
+  <link rel="stylesheet" href="vendors/layout/layout-default.css"/>
+  <link rel="stylesheet" href="resources/css/browser.css"/>
+  <link rel="stylesheet" href="vendors/DataTables/datatables.min.css"/>
+  <script type="text/javascript" src="vendors/jstree/jstree.js"></script>
+  <script type="text/javascript" src="vendors/layout/jquery.layout.js"></script>
+  <script src="https://apis.google.com/js/platform.js" async defer></script>
+  <script type="text/javascript" src="vendors/DataTables/datatables.js"></script>
+  <script type="text/javascript" src="vendors/colresizable/colResizable-1.6.min.js"></script>
+  <style>
+     td.item-node {
+        max-width: 10em;
+     }
+     div.ellipsis {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+     }
+  </style>
+</head>
+<body>
+
+<div class="ui-layout-center">
+  <table id="contributions" class="display" width="100%">
+ <thead>
+
+  <tr><th>Contributor</th><th>Annotations</th><th>Type</th><th width="50%">Content</th>
+    <th>Title</th><th>DiscourseParts</th>
+    <th>Date</th><th>Parent ID</th></tr>
+  </thead>
+  <tbody>
+  </tbody>
+  </table>
+</div>
+<div class="ui-layout-west">
+  <h5>Select DiscourseParts</h5>
+  <div id="jstree_dps">
+    <!-- in this example the tree is populated from inline HTML -->
+
+  </div>
+  <button id="refreshTree">Refresh tree</button>
+</div>
+<div class="ui-layout-north">
+   <img src="resources/img/discoursedb_logo.png">
+   <div class="rightinset" >
+     <div id="currentuser">Not logged in</div>
+     <div id="signInButton" class="g-signin2" data-onsuccess="onSignIn"></div>
+     <a href="#" id="signOutButton">Sign out</a>
+   </div>
+
+</div>
+
+
+<div class="ui-layout-east" id="eastpanel" style="display: none; padding: 0px">
+  <div class="io">
+    <div id="io_accordion" class="basic">
+      <h3><a href="#">Import options</a></h3>
+      <div>
+        <button>Brat</button>
+        <br/>
+        <button>Lightside (with annotations and indexed for reimport)</button>
+      </div>
+      <h3><a href="#">Export options</a></h3>
+      <div>
+        <button>Brat</button>
+        <br/>
+        <button>Lightside (no annotations; indexed for later reimport)</button>
+        <br/>
+        <button>Lightside (with annotations)</button>
+      </div>
+      <h3><a href="#">Annotations</a></h3>
+      <div style="padding: 0"><div id="jstree_annos" style="padding: 0">
+      <ul>
+      <li>Transactive</li>
+      <li>Reasoning</li>
+      <li>Good</li>
+      <li>NeedsImprovement</li>
+      <li><input value="(enter more codes)"/></li>
+      </ul>
+      </div></div>
+      <h3><a href="#">Selections</a></h3>
+      <div id="query_list">
+        junk
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <script src="index.js"></script>
+
+</body>
+</html>

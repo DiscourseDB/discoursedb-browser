@@ -1,0 +1,10 @@
+
+DiscourseDB browser, Version 2
+
+
+Running locally as a test
+   Run the server in Eclipse
+   must first go to https://localhost:5980, try to access it and fail, and approve the risky access.
+   Make sure you've added your own google ID to the database as a user
+   Run http-server -o -S -C <your cert.pem file>
+   must have key.pem file in this directory
