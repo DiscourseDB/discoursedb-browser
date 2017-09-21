@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Trees And Panels</title>
+  <title>DiscourseDB</title>
   <script type="text/javascript" src="layout-master/demos/js/jquery.js"></script>
   <script type="text/javascript" src="layout-master/demos/js/jquery-ui.js"></script>
 
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="vendors/layout/layout-default.css"/>
   <link rel="stylesheet" href="resources/css/browser.css"/>
   <link rel="stylesheet" href="vendors/DataTables/datatables.min.css"/>
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css">
   <script type="text/javascript" src="vendors/jstree/jstree.js"></script>
   <script type="text/javascript" src="vendors/layout/jquery.layout.js"></script>
   <script src="https://apis.google.com/js/platform.js" async defer></script>
@@ -37,7 +38,7 @@
 
   <tr><th>Contributor</th><th>Annotations</th><th>Type</th><th width="50%">Content</th>
     <th>Title</th><th>DiscourseParts</th>
-    <th>Date</th><th>Parent ID</th></tr>
+    <th>Date</th><th>ID</th><th>Parent ID</th></tr>
   </thead>
   <tbody>
   </tbody>
@@ -45,11 +46,27 @@
 </div>
 <div class="ui-layout-west">
   <h5>Select DiscourseParts</h5>
-  <div id="jstree_dps">
-    <!-- in this example the tree is populated from inline HTML -->
-
+  <div id="dps_tabs">
+    <ul><li><a href="#jstree_dps_wrap">Explore</a></li>
+      <li><a href="#list_dps">List</a></li>
+    </ul>
+    <div id="jstree_dps_wrap">
+      (<span id="jstree_selection_count">0</span> selected)
+      <div id="jstree_dps">
+      <!-- in this example the tree is populated from inline HTML -->
+      </div>
+    </div>
+    <div id="list_dps">
+      List of selected dps goes here, with delete affordance
+    </div>
   </div>
-  <button id="refreshTree">Refresh tree</button>
+
+  <div style="position:absolute; bottom:0">
+  <select id="query_list">
+  <option value="(no saved query)">(no saved query)</option>
+</select><br/>
+  <button disabled id="save_query">Save</button><button disabled id="delete_query">Delete</button>
+  </div>
 </div>
 <div class="ui-layout-north">
    <img src="resources/img/discoursedb_logo.png">
@@ -88,11 +105,8 @@
       <li>NeedsImprovement</li>
       <li><input value="(enter more codes)"/></li>
       </ul>
-      </div></div>
-      <h3><a href="#">Selections</a></h3>
-      <div id="query_list">
-        junk
-      </div>
+    </div></div>
+
     </div>
   </div>
 </div>
