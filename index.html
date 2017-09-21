@@ -44,13 +44,14 @@
   </tbody>
   </table>
 </div>
-<div class="ui-layout-west">
-  <h5>Select DiscourseParts</h5>
-  <div id="dps_tabs">
+<div class="ui-layout-west unpadded" id="westpanel">
+  <div id="select_discourseparts" class="unpadded">
+  <h5>&nbsp;Select DiscourseParts</h5>
+  <div id="dps_tabs" class="unpadded">
     <ul><li><a href="#jstree_dps_wrap">Explore</a></li>
       <li><a href="#list_dps">List</a></li>
     </ul>
-    <div id="jstree_dps_wrap">
+    <div id="jstree_dps_wrap" class="unpadded">
       (<span id="jstree_selection_count">0</span> selected)
       <div id="jstree_dps">
       <!-- in this example the tree is populated from inline HTML -->
@@ -60,8 +61,8 @@
       List of selected dps goes here, with delete affordance
     </div>
   </div>
-
-  <div style="position:absolute; bottom:0">
+</div>
+  <div id="save_selection">
   <select id="query_list">
   <option value="(no saved query)">(no saved query)</option>
 </select><br/>
@@ -79,36 +80,30 @@
 </div>
 
 
-<div class="ui-layout-east" id="eastpanel" style="display: none; padding: 0px">
-  <div class="io">
-    <div id="io_accordion" class="basic">
-      <h3><a href="#">Import options</a></h3>
+<div class="ui-layout-east unpadded" id="eastpanel" style="display: none">
+  <div class="io unpadded">
+    <div id="io_accordion" class="basic unpadded">
+      <h3><a href="#">Annotate</a></h3>
       <div>
-        <button>Brat</button>
-        <br/>
-        <button>Lightside (with annotations and indexed for reimport)</button>
+        <div id="annotation_projects"></div>
+        <hr/>
+        Allowable annotation tags:<br/>
+        <textarea id="annotation_tags">
+Transactive
+Reasoning
+Good
+NeedsImprovement</textarea><br/>
+        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;How to Annotate DiscourseDB data using Brat (read this before using!)</a>
       </div>
-      <h3><a href="#">Export options</a></h3>
+      <h3><a href="#">Import/Export</a></h3>
       <div>
-        <button>Brat</button>
+        <button class="ui-button csv-button ui-widget ui-corner-all" id="csvexport_anno">CSV Export</button>
+        <button  class="ui-button csv-button ui-widget ui-corner-all" id="csvexport_noanno">CSV Export (no annotations)</button>
+        <button  class="ui-button csv-button ui-widget ui-corner-all" id="csvimport">Import Lightside labeling</button>
         <br/>
-        <button>Lightside (no annotations; indexed for later reimport)</button>
-        <br/>
-        <button>Lightside (with annotations)</button>
+        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;How to use Lightside to infer labels in DiscourseDB (read this before using!)</a>
       </div>
-      <h3><a href="#">Annotations</a></h3>
-      <div style="padding: 0"><div id="jstree_annos" style="padding: 0">
-      <ul>
-      <li>Transactive</li>
-      <li>Reasoning</li>
-      <li>Good</li>
-      <li>NeedsImprovement</li>
-      <li><input value="(enter more codes)"/></li>
-      </ul>
     </div></div>
-
-    </div>
-  </div>
 </div>
 
 

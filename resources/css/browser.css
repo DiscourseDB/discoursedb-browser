@@ -2,3 +2,32 @@
 {
     display:none
 }
+
+.dataTable th
+{
+    overflow:hidden;
+}
+.dataTable th:hover
+{
+    overflow:initial;
+    width:auto;
+}
+
+textarea
+{
+    overflow-y:scroll;
+    height: 150px;
+}
+
+.csv-button
+{
+  width: 100%;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.unpadded
+{
+  padding: 0 !important;
+  border: 0 !important;
+}

@@ -2,17 +2,10 @@
 var baseUrl = "https://localhost:5980";
 var model = {
   server_query_list: [],
-  current_server_query_name: "",
+  current_server_query_name: "(unnamed selection)",
   query_saved_state: "working",
   query_content: { rows: { discourse_part: [] }, },
-
-
-  /*checkboxes2query_content(dpIdList, lookupDpIdName) {
-    this.query_content.rows.discourse_part =
-          dpIdList.map(function(key) {
-            return { name: lookupDpIdName(key), dpid: key.split("/")[1] };
-          })
-  },*/
+  brat_dirs: {},
   query_content2dplist() {
     return this.query_content.rows.discourse_part.map(function(key) {
       return key["dpid"];
@@ -45,6 +38,21 @@ var triggers = {
   initialization() { setup_components(); },
   query_selection_change() {  set_selections_from_query();  this.query_content_changed(); },
   jtree_expand_node() { set_selections_from_query(); },
+  brat_dirs_changed() { populate_anno_projects() },
+}
+
+populate_anno_projects = function() {
+   html = model.brat_dirs.map(function(bratinf) {
+      a =
+        '<a target="brat" href="' + bratinf._links["Edit BRAT markup"].href + '" ><i class="glyphicon glyphicon-edit" title="Add or edit annotations in the Brat tool"></i></a> &nbsp;'
+        + '<a target="brat" href="' + bratinf._links["Import BRAT markup"].href + '"><i  class="glyphicon glyphicon-import" title="Import Brat annotations into DiscourseDB"></i></a> &nbsp;'
+        + '<a target="brat" href="' + bratinf._links["Delete BRAT markup"].href + '"><i  class="glyphicon glyphicon-remove" title="Forget these annotations in the Brat tool"></i></a> &nbsp;'
+        + bratinf.name;
+      return a;
+   }).join("<br/>");
+   html += '<br/><a href="#" id="create_new_export"><i class="glyphicon glyphicon-edit" title="Add or edit annotations in the Brat tool"></i></a> &nbsp;'
+   + "&nbsp;&nbsp;&nbsp;" + model.current_server_query_name;
+   $('#annotation_projects').html(html);
 }
 
 set_query_buttons = function() {
@@ -98,13 +106,27 @@ setup_components = function() {
   layout = $('body').layout({applyDefaultStyles: true });
   layout.options.north.resizeable = false;
   layoutEast = $('#eastpanel').layout({
-      north__paneSelector: ".queries",
+      //north__paneSelector: ".io",
       center__paneSelector: ".io",
       applyDefaultStyles: true
   });
+  layoutWest = $('#westpanel').layout({
+      //north__paneSelector: ".io",
+      center__paneSelector: "#select_discourseparts",
+      south__paneSelector: "#save_selection",
+      applyDefaultStyles: true
+  });
+  $('#contributions').colResizable({
+      liveDrag:true,
+      gripInnerHtml:"<div class='grip'></div>",
+      draggingClass:"dragging"
+  });
+  $("#io_accordion").accordion({
+       heightStyle:    "content",
+       active: 0
+  });
   $('#dps_tabs').tabs();
   $('#jstree_annos').jstree({ "plugins" : [ "checkbox" ] });
-
   $('#jstree_dps').on('changed.jstree', function (eventt, objj) {
     console.log("JTREE", eventt);
     var tree = $('#jstree_dps').jstree(true);
@@ -142,17 +164,13 @@ setup_components = function() {
 
 
 set_selections_from_query = function() {
-  // DONE: Add some secondary text to the query format
-  // DONE: learn how to set checkboxes without knock-on effects; turn on here
-  // DONE: Why doesn't unchecking work?  Retrieved items just stack up
-  // DONE: prettier selection list
-  // DONE: copy pretty name into query_content
   // TODO: prop_new should replace if type and name are the same
-  // DONE: go through tree and select things that should be selected
+
+  // go through tree and select things that should be selected
   var t = $("#jstree_dps").jstree(true)
   var v = t.get_json('#', {'flat': true});
   var dplist = model.query_content2dplist().map((dpid) => "DP/" + dpid + "/0");
-  // DONE: Put count of selected DPs at top. Hyperlink to List tab
+  // Put count of selected DPs at top. Hyperlink to List tab
   $('#jstree_selection_count').html(dplist.length);
   for (i = 0; i < v.length; i++) {
      var z = v[i];
@@ -164,8 +182,7 @@ set_selections_from_query = function() {
      }
      triggers.pauseGridUpdate = false;
   }
-  // TODO: call this every time a new subtree is opened
-  // DONE: also write list to $('#dps_list') along with a delete icon
+  // also write list to $('#dps_list') along with a delete icon
   var lst = "";
   model.query_content.rows.discourse_part.map(function(dp) {
      lst = lst + '\n<i dpid="' + dp["dpid"] +
@@ -173,10 +190,6 @@ set_selections_from_query = function() {
         + dp["name"] + "</span><br/>";
   });
   $("#list_dps").html(lst);
-
-  // TODO: make delete icon remove from model, and call this function
-  //
-  //
 }
 
 
@@ -188,6 +201,23 @@ show_server_query_list = function() {
   });
   ql.html(html);
 }
+
+
+brat_dirs_refresh = function() {
+  $.ajax({
+    type: 'GET',
+    xhrFields: { withCredentials: ($.access_token != null) },
+    beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    url: baseUrl + '/browsing/bratExports'}).done(
+    function(datback) {
+         model.brat_dirs = datback._embedded.browsingBratExportResources;
+         triggers.brat_dirs_changed();
+    });
+}
+
+
 
 /*
 *  Refresh the list of saved queries
@@ -470,6 +500,7 @@ var dp_tree_refresh = function() {
    $("#signOutButton").show();
    query_list_refresh();
    dp_tree_refresh();
+   brat_dirs_refresh();
  }
 
  /*
@@ -489,6 +520,7 @@ function update_grid() {
 	      api.draw();
       } else {
         $('#contributions').DataTable( {
+          dom: 'lript',
           serverSide: true,
           autoWidth: true,
           searching: false,
@@ -519,15 +551,7 @@ function update_grid() {
                 }
             }
            } );
-        $('#contributions').colResizable({
-            liveDrag:true,
-  	        gripInnerHtml:"<div class='grip'></div>",
-  	        draggingClass:"dragging"
-        });
-        $("#io_accordion").accordion({
-             heightStyle:    "fill",
-  	         active: 3
-        });
+
         firstTime = false;
       }
  };
