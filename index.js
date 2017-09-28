@@ -1,79 +1,196 @@
 
 var baseUrl = "https://localhost:5980";
+var empty_server_query = { rows: { discourse_part: [] } };
+var blank_server_query = {propName: "blank", propValue: "{ \"rows\": { \"discourse_part\": [] } }"};
+
 var model = {
-  server_query_list: [],
-  current_server_query_name: "(unnamed selection)",
-  query_saved_state: "working",
-  query_content: { rows: { discourse_part: [] }, },
-  brat_dirs: {},
+  query_content: empty_server_query,
+  server_query_list: [blank_server_query],
+  current_server_query_name: "",
+  query_saved_state: "blank",   // blank | saved | unsaved
+  brat_dirs: [],
+
+  // Model readers/writers
   query_content2dplist() {
-    return this.query_content.rows.discourse_part.map(function(key) {
+    return model.query_content.rows.discourse_part.map(function(key) {
       return key["dpid"];
     })
   },
+  is_query_saved() {
+    return this.query_saved_state === "saved";
+    /*if (model.query_content.rows.discourse_part.length == 0) { return true; }
+    for (q in model.server_query_list) {
+      if (model.server_query_list[q]["propName"] === model.current_server_query_name) {
+          return true;
+      }
+    }
+    return false;*/
+  },
   find_server_query(name) {
+    //if (name === "blank") { return empty_server_query; }
     for (q in model.server_query_list) {
       if (model.server_query_list[q]["propName"] === name) {
           return JSON.parse(model.server_query_list[q]["propValue"]);
       }
     }
+    return empty_server_query;
   },
   remove_query_item(dpid) {
-    this.query_content.rows.discourse_part =
-       this.query_content.rows.discourse_part.
+    model.query_content.rows.discourse_part =
+       model.query_content.rows.discourse_part.
           filter(function(i) { return i.dpid !== dpid; })
+
   },
   add_query_item(dpId, dpName) {
     this.remove_query_item(dpId);
-    this.query_content.rows.discourse_part.push({dpid: dpId, name: dpName});
-  }
+    model.query_content.rows.discourse_part.push({dpid: dpId, name: dpName});
+
+  },
+  set_query_name(name) {
+     if (name == undefined || name === "blank") {
+         suffix = "";
+         if (model.query_saved_state === "blank") {
+           name = "selection1"
+         } else {
+           name = model.current_server_query_name; //TODO: drop \d from end of name if needed and seed suffix with that +1
+         }
+         forbiddenNames = model.server_query_list.map((sq) => sq.propName )
+         while (forbiddenNames.includes(sanitize_query_name(name+suffix))) {
+           if (suffix === "") { suffix = 2; }
+           else { suffix += 1; }
+         }
+         name = sanitize_query_name(name+suffix);
+     }
+     model.current_server_query_name = name;
+   }
 }
+
+
 
 var triggers = {
-  pauseGridUpdate: false,
-  query_content_changed() { if (!this.pauseGridUpdate) { set_selections_from_query(); update_grid(); set_query_buttons(); }   },
-  server_query_list_changed() { show_server_query_list(); },
-  save_query_clicked() { upload_query_to_server(); },
-  after_upload_query_to_server() { query_list_refresh(); },
+  ignoreJtreeClicks: false,
   initialization() { setup_components(); },
-  query_selection_change() {  set_selections_from_query();  this.query_content_changed(); },
-  jtree_expand_node() { set_selections_from_query(); },
-  brat_dirs_changed() { populate_anno_projects() },
+  query_content_changed() {  view.set_selections_from_query(); update_grid(); view.set_query_buttons(); model.set_query_name(undefined); view.update_name_display(); view.show_server_query_list(); view.populate_anno_projects();  },
+  clicked_dp_checkbox() {  this.query_content_changed();  },
+  server_query_list_changed() { view.show_server_query_list(); view.update_name_display(); },
+  save_query_clicked() {  p_upload_query_to_server().then(() =>
+    { model.query_saved_state = "saved";
+      view.set_query_buttons();
+      view.update_name_display();
+      view.show_server_query_list();
+      view.populate_anno_projects(); }).catch((err) => {inform_status(err)}); },
+  download_query_clicked() {
+    download_query_csv();
+  },
+  after_upload_query_to_server() {  p_query_list_refresh(); view.populate_anno_projects(); view.set_query_buttons(); },
+  query_selection_change() {   view.update_name_display(); view.set_selections_from_query(); view.set_query_buttons(); view.populate_anno_projects(); update_grid(); },
+  jtree_expand_node() { view.set_selections_from_query(); },
+  brat_dirs_changed() { view.populate_anno_projects() },
+  click_delete_brat(href) { delete_brat_dir(href) },
+  click_import_brat(href) { import_brat_dir(href) },
+  click_create_brat() { create_brat_dir() },
 }
 
-populate_anno_projects = function() {
-   html = model.brat_dirs.map(function(bratinf) {
-      a =
-        '<a target="brat" href="' + bratinf._links["Edit BRAT markup"].href + '" ><i class="glyphicon glyphicon-edit" title="Add or edit annotations in the Brat tool"></i></a> &nbsp;'
-        + '<a target="brat" href="' + bratinf._links["Import BRAT markup"].href + '"><i  class="glyphicon glyphicon-import" title="Import Brat annotations into DiscourseDB"></i></a> &nbsp;'
-        + '<a target="brat" href="' + bratinf._links["Delete BRAT markup"].href + '"><i  class="glyphicon glyphicon-remove" title="Forget these annotations in the Brat tool"></i></a> &nbsp;'
-        + bratinf.name;
-      return a;
-   }).join("<br/>");
-   html += '<br/><a href="#" id="create_new_export"><i class="glyphicon glyphicon-edit" title="Add or edit annotations in the Brat tool"></i></a> &nbsp;'
-   + "&nbsp;&nbsp;&nbsp;" + model.current_server_query_name;
-   $('#annotation_projects').html(html);
+var view = {
+  update_name_display() {
+    $('#query_display_name').html(model.current_server_query_name);
+  },
+  populate_anno_projects() {
+     if (model.query_saved_state === "blank") {
+        html = "";
+     } else {
+         var bratinf = model.brat_dirs.find((bd) => bd.name==model.current_server_query_name);
+         if (bratinf) {
+           html = '<a target="brat" href="' + bratinf._links["Edit BRAT markup"].href + '" >'
+                + '<i class="glyphicon glyphicon-edit" title="Add or edit annotations in the Brat tool"></i> &nbsp;Edit</a><br/>'
+                + '<span class="bratImportLink fakelink" href="' + bratinf._links["Import BRAT markup"].href + '">'
+                + '<i  class="glyphicon glyphicon-import" title="Import Brat annotations into DiscourseDB"></i> &nbsp;Import</span> <br/>'
+                + '<span class="bratDeleteLink fakelink" href="' + bratinf._links["Delete BRAT markup"].href + '">'
+                + '<i  class="glyphicon glyphicon-remove" title="Forget these annotations in the Brat tool"></i> &nbsp;Delete</span> <br/>';
+         } else {
+         html = '<br/><span class="createNewExport fakelink"><i class="glyphicon glyphicon-edit" title="Annotate current selection"></i> &nbsp;'
+              + "Annotate</span>";
+         }
+     }
+     $('#annotation_projects').html(html);
+  },
+  set_query_buttons() {
+      $('#delete_query').prop('disabled', model.query_saved_state !== "saved");
+      $('#save_query').prop('disabled', model.query_saved_state !== "unsaved");
+      $('.when_something_selected').attr('disabled', model.query_saved_state == "blank");
+      $('#download_query_direct').attr('href',
+        baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" + encodeURIComponent(JSON.stringify(model.query_content)));
+  },
+  set_selections_from_query() {
+    // TODO: prop_new should replace if type and name are the same
+
+    // go through tree and select things that should be selected
+    var t = $("#jstree_dps").jstree(true)
+    var v = t.get_json('#', {'flat': true});
+    var dplist = model.query_content2dplist().map((dpid) => "DP/" + dpid + "/0");
+    // Put count of selected DPs at top. Hyperlink to List tab
+    $('#jstree_selection_count').html(dplist.length);
+    for (i = 0; i < v.length; i++) {
+       var z = v[i];
+       triggers.ignoreJtreeClicks = true;
+       if (dplist.includes(z["id"])) {
+         t.check_node(z["id"]);
+       } else {
+         t.uncheck_node(z["id"]);
+       }
+       triggers.ignoreJtreeClicks = false;
+
+    }
+    // also write list to $('#dps_list') along with a delete icon
+    var lst = "";
+    model.query_content.rows.discourse_part.map(function(dp) {
+       lst = lst + '\n<i dpid="' + dp["dpid"] +
+          '" class="glyphicon removeQueryItem glyphicon-remove-circle"></i>&nbsp;<span class="ellipsis">'
+          + dp["name"] + "</span><br/>";
+    });
+    $("#list_dps").html(lst);
+  },
+
+
+  show_server_query_list() {
+    var ql = $('#query_list');
+    html = "";
+    $.each(model.server_query_list, function(i, item) {
+      if (item.propName === model.current_server_query_name)
+         { sel = ' selected="selected" '; } else { sel = ""; }
+      html += '<option' + sel + '>' + item.propName + '</option>';
+    });
+    if (model.query_saved_state === "unsaved") {
+      html += '<option selected="selected">(not saved)</option>';
+    }
+    ql.html(html);
+  },
+
 }
 
-set_query_buttons = function() {
-    $('#save_query').prop('disabled', model.query_content.rows.discourse_part.length == 0);
-}
 
 
-myprompt = function(question) {
+
+myprompt = function(question, defaulty) {
   return new Promise(function(g,b) {
-    var ans = window.prompt(question);
+    var ans = window.prompt(question, defaulty);
     if (ans == undefined) { b("Cancel"); }
-    else { g(ans); }
+    else { g(sanitize_query_name(ans)); }
   });
 }
 
-upload_query_to_server = function() {
-  myprompt('Please name this selection of ' +
-      model.query_content.rows.discourse_part.length +
-      ' discourse parts').then(function(newname) {
-        $.ajax({
-          type: 'GET',
+p_upload_query_to_server = function() {
+  var chosenName = "";
+  if (model.is_query_saved() || model.query_saved_state === "blank") {
+    return Promise.resolve();
+  } else {
+    return myprompt('Please name this selection of ' +
+        model.query_content.rows.discourse_part.length +
+        ' discourse parts', $('#query_display_name').text())
+    .then( (newname) => {
+       chosenName = newname;
+       return $.ajax({
+          type: 'POST',
           xhrFields: { withCredentials: ($.access_token != null) },
           beforeSend: function (xhr) {
                     xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
@@ -83,11 +200,11 @@ upload_query_to_server = function() {
             "pname": newname,
             "pvalue": JSON.stringify(model.query_content)
           },
-          url: baseUrl + '/browsing/prop_add'}).done(
-          function(datback) {
-               triggers.after_upload_query_to_server();
-          });
-        });
+          url: baseUrl + '/browsing/prop_add'})})
+    .then(() => { p_query_list_refresh();  })
+    .then(() => { model.set_query_name(chosenName); model.query_saved_state = "saved"; })
+    .catch((err) => {inform_status(err)});
+  }
 }
 
 
@@ -113,9 +230,9 @@ setup_components = function() {
   layoutWest = $('#westpanel').layout({
       //north__paneSelector: ".io",
       center__paneSelector: "#select_discourseparts",
-      south__paneSelector: "#save_selection",
       applyDefaultStyles: true
   });
+
   $('#contributions').colResizable({
       liveDrag:true,
       gripInnerHtml:"<div class='grip'></div>",
@@ -123,20 +240,22 @@ setup_components = function() {
   });
   $("#io_accordion").accordion({
        heightStyle:    "content",
-       active: 0
+       active: 1
   });
   $('#dps_tabs').tabs();
   $('#jstree_annos').jstree({ "plugins" : [ "checkbox" ] });
   $('#jstree_dps').on('changed.jstree', function (eventt, objj) {
-    console.log("JTREE", eventt);
-    var tree = $('#jstree_dps').jstree(true);
-    if (objj.node.state.selected && objj.node.id.startsWith("DP/")) {
-      model.add_query_item(objj.node.id.split("/")[1], objj.node.text);
-    } else {
-      model.remove_query_item(objj.node.id);
-
+    if (!triggers.ignoreJtreeClicks) {
+      console.log("JTREE", eventt);
+      var tree = $('#jstree_dps').jstree(true);
+      if (objj.node.state.selected && objj.node.id.startsWith("DP/")) {
+        model.add_query_item(objj.node.id.split("/")[1], objj.node.text);
+      } else if (!objj.node.state.selected && objj.node.id.startsWith("DP/")) {
+        model.remove_query_item(objj.node.id.split("/")[1]);
+      }
+      model.query_saved_state = "unsaved";
+      triggers.clicked_dp_checkbox();
     }
-    triggers.query_content_changed();
   });
   $("#jstree_dps").on("open_node.jstree", function (e, data) {
     triggers.jtree_expand_node  ();
@@ -145,8 +264,16 @@ setup_components = function() {
     triggers.save_query_clicked();
   });
   $('#query_list').on('change', function (eventt) {
-    model.query_content = model.find_server_query(eventt.currentTarget.value);
-    triggers.query_selection_change();
+    if (!triggers.ignoreJtreeClicks) {
+      if (eventt.currentTarget.value === "blank") {
+        model.query_saved_state = "blank";
+      } else {
+        model.query_saved_state = "saved";
+      }
+      model.set_query_name(eventt.currentTarget.value);
+      model.query_content = model.find_server_query(eventt.currentTarget.value);
+      triggers.query_selection_change();
+    }
   });
   $(document).on('click', '.ellipsis', function () {
       $(this).toggleClass('nonellipsis')
@@ -157,64 +284,140 @@ setup_components = function() {
       $(this).toggleClass('ellipsis')
   });
   $(document).on('click', '.removeQueryItem', function(eventt, objj) {
+      model.query_saved_state = "unsaved";
       model.remove_query_item(eventt.target.getAttribute("dpid"));
-      triggers.query_selection_change();
+      triggers.clicked_dp_checkbox();
   });
+  $(document).on('click', '.bratImportLink', function(eventt) {
+    triggers.click_import_brat(eventt.currentTarget.getAttribute("href"))
+  });
+  $(document).on('click', '.bratDeleteLink', function(eventt) {
+    triggers.click_delete_brat(eventt.currentTarget.getAttribute("href"))
+  });
+  $(document).on('click', '.createNewExport', function(eventt, objj) {
+    triggers.click_create_brat()
+  });
+  $('#download_query_direct').on('click', function(eventt, objj) {
+    window.open($('#download_query_direct').attr("href"), "_blank");
+  });
+  view.set_query_buttons();
 }
 
+start_spinner = function () {$('#status').html("").css('background', 'url(resources/img/loading.gif) no-repeat').css('display','block');}
+stop_spinner = function() {$('#status').css('background', 'white').css('display','block'); window.setTimeout(hide_spinner,3000);}
+hide_spinner = function() {$('#status').css('display','none');}
 
-set_selections_from_query = function() {
-  // TODO: prop_new should replace if type and name are the same
-
-  // go through tree and select things that should be selected
-  var t = $("#jstree_dps").jstree(true)
-  var v = t.get_json('#', {'flat': true});
-  var dplist = model.query_content2dplist().map((dpid) => "DP/" + dpid + "/0");
-  // Put count of selected DPs at top. Hyperlink to List tab
-  $('#jstree_selection_count').html(dplist.length);
-  for (i = 0; i < v.length; i++) {
-     var z = v[i];
-     triggers.pauseGridUpdate = true;
-     if (dplist.includes(z["id"])) {
-       t.check_node(z["id"]);
-     } else {
-       t.uncheck_node(z["id"]);
-     }
-     triggers.pauseGridUpdate = false;
+inform_status = function(info) {
+  if (info === "") { stop_spinner(); hide_spinner(); return; }
+  if (info.hasOwnProperty("responseJSON")) {
+    info = info.responseJSON.error + ":" +  info.responseJSON.message;
+  } else if (info.hasOwnProperty("message")) {
+    info = info.message;
+  } else {
+    info = JSON.stringify(info);
   }
-  // also write list to $('#dps_list') along with a delete icon
-  var lst = "";
-  model.query_content.rows.discourse_part.map(function(dp) {
-     lst = lst + '\n<i dpid="' + dp["dpid"] +
-        '" class="glyphicon removeQueryItem glyphicon-remove-circle"></i>&nbsp;<span class="ellipsis">'
-        + dp["name"] + "</span><br/>";
-  });
-  $("#list_dps").html(lst);
+  console.log("STATUS: ", info);
+  stop_spinner();
+  $('#status').html("<h2>Error</h2><p>" + info + "</p>");
 }
 
-
-show_server_query_list = function() {
-  var ql = $('#query_list');
-  html = '<option selected>(no saved query)</option>'
-  $.each(model.server_query_list, function(i, item) {
-    html += '<option>' + item.propName + '</option>';
-  });
-  ql.html(html);
+sanitize_query_name = function(qn) {
+  return qn.replace("[^a-zA-Z0-9\\._]", "_");
 }
 
-
-brat_dirs_refresh = function() {
-  $.ajax({
+download_query_csv = function() {
+  return $.ajax({
+    url: baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" + encodeURIComponent(JSON.stringify(model.query_content)),
     type: 'GET',
     xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
     },
-    url: baseUrl + '/browsing/bratExports'}).done(
-    function(datback) {
-         model.brat_dirs = datback._embedded.browsingBratExportResources;
-         triggers.brat_dirs_changed();
-    });
+    success: function() {
+        console.log("Here");
+        window.location = 'discoursedb_data.csv';
+    }
+  }).done(function(th) { console.log("THENN" + th); })
+  .fail((err) => {inform_status(err)});
+}
+
+p_brat_dirs_refresh = function() {
+  return $.ajax({
+    type: 'GET',
+    xhrFields: { withCredentials: ($.access_token != null) },
+    beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    url: baseUrl + '/browsing/bratExports'}).then(
+    (datback) => {
+      return new Promise(function(g,b) {
+        try {
+           model.brat_dirs = datback._embedded.browsingBratExportResources;
+           triggers.brat_dirs_changed();
+           g("done");
+         } catch (e) {
+           model.brat_dirs = [];
+           triggers.brat_dirs_changed();
+           b(e);
+         }
+       })
+    }).fail((err) => {inform_status(err)});
+}
+
+
+
+delete_brat_dir = function(href) {
+  return $.ajax({type: 'GET',
+          xhrFields: { withCredentials: ($.access_token != null) },
+          beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+          },
+          url: href}).then(
+          function(datback) {
+               model.brat_dirs = datback._embedded.browsingBratExportResources;
+               triggers.brat_dirs_changed();
+          }).fail((err) => {inform_status(err)});;
+}
+
+import_brat_dir = function(href) {
+  return $.ajax({type: 'GET',
+          xhrFields: { withCredentials: ($.access_token != null) },
+          beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+          },
+          url: href})
+  .then(function (g,b) { update_grid(); })
+  .fail((err) => {inform_status(err)});
+}
+
+create_brat_dir = function() {
+  start_spinner();
+
+  p_upload_query_to_server().then((g,b) => {
+      var calls =  model.query_content2dplist().map(function(dpid) {
+        console.log("Exporting one BRAT element: ", dpid);
+        return $.ajax({type: 'GET',
+            xhrFields: { withCredentials: ($.access_token != null) },
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+            },
+            data: {
+              exportDirectory: model.current_server_query_name,
+              dpId: dpid
+            },
+            url: baseUrl + "/browsing/action/exportBratItem"});
+      });
+      Promise.all(calls).then(() =>  p_brat_dirs_refresh() )
+        // TODO: Add endpoint to read/write brat config file
+        // TODO: write out codes to Brat config file.
+      .then(() => {
+        hide_spinner();
+        var q = model.brat_dirs.find((bd) => bd.name==model.current_server_query_name);
+        url = q._links["Edit BRAT markup"].href;
+        window.open(url, "brat");
+      })
+      .catch((err) => {inform_status(err);});
+  });
 }
 
 
@@ -222,42 +425,20 @@ brat_dirs_refresh = function() {
 /*
 *  Refresh the list of saved queries
 */
-query_list_refresh = function () {
-  $.ajax({
+p_query_list_refresh = function () {
+  return $.ajax({
     type: 'GET',
     xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
     },
-    url: baseUrl + '/browsing/prop_list?ptype=query'}).done(
+    url: baseUrl + '/browsing/prop_list?ptype=query'}).then(
     function(datback) {
-         model.server_query_list = datback;
+         model.server_query_list = [blank_server_query].concat(datback);
          triggers.server_query_list_changed();
-    });
+    }).fail((err) => {inform_status(err)});
 }
-/*
-*  Refresh the query pane
-*    qstate.queries = [list of strings -- names of saved queries]
-*    qstate.state = working  OR  saved   <--- default is working
-*    qstate.selection = query
-*
-var query_pane_refresh = function (qstate) {
-  var ql = $('#query_list');
-  $.ajax({
-    type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
-    beforeSend: function (xhr) {
-              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
-    url: 'https://localhost:5980/browsing/prop_list?ptype=query'}).done(
-    function(datback) {
-         html = '<option selected>(no saved query)</option>'
-         $.each(datback, function(i, item) {
-           html += '<option>' + item.propName + '</option>';
-         });
-         ql.html(html);
-    });
-}*/
+
 
 jstree_node2url = function (node) {
   /* # -> root;    /browsing/stats
@@ -498,9 +679,9 @@ var dp_tree_refresh = function() {
    $("#currentuser").html("Current user: " + profile.getName());
    $("#signInButton").hide();
    $("#signOutButton").show();
-   query_list_refresh();
+   p_query_list_refresh();
    dp_tree_refresh();
-   brat_dirs_refresh();
+   p_brat_dirs_refresh();
  }
 
  /*
@@ -514,7 +695,7 @@ function update_grid() {
       console.log("Updating grid with query results: " + JSON.stringify(query));
       if (firstTime == false) {
         var api = $('#contributions').dataTable().api();
-        api.ajax.url("https://localhost:5980/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
+        api.ajax.url(baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
         api.ajax.reload();
         api.columns.adjust();
 	      api.draw();
@@ -533,11 +714,15 @@ function update_grid() {
             { data: "title" },
             { data: "discourseParts" },
             { data: "startTime", width:"10%"},
-	    { data: "contributionId" },
+	          { data: "contributionId" },
             { data: "parentId" }
           ],
           ajax: {
-                url: "https://localhost:5980/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)),
+                url: baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)),
+                xhrFields: { withCredentials: ($.access_token != null) },
+                beforeSend: function (xhr) {
+                          xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+                },
                 dataFilter: function(data){
                     var json = jQuery.parseJSON( data );
                     json.recordsTotal = json.page.totalElements;
@@ -555,70 +740,3 @@ function update_grid() {
         firstTime = false;
       }
  };
-
-/*
-function update_grid_medium(selected) {
-   var query = {
-     "rows": {
-       "discourse_part":
-         selected.map(function(key, index) {
-           return key.split("/")[1];
-         })
-       }
-     };
-     var api = $('#contributions').dataTable().api();
-
-     $.ajax({
-       type: 'GET',
-       xhrFields: { withCredentials: ($.access_token != null) },
-       beforeSend: function (xhr) {
-                 xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-       },
-       success: function(datback, status, xhr) {
-            api.clear();
-            console.log(datback);
-            datback._embedded.browsingContributionResources.forEach(function(r) {
-              api.row.add([r["title"], r["contributor"], "(date)", r["type"]]);
-            });
-
-            api.draw();
-       },
-       url: "https://localhost:5980/browsing/query?query=" + encodeURIComponent(JSON.stringify(query))
-
-     });
-};
-
-function update_grid_old(selected) {
-  var query = {
-    "rows": {
-      "discourse_part":
-        selected.map(function(key, index) {
-          return key.split("/")[1];
-        })
-      }
-    };
-    $('#contributions').DataTable( {
-      columns: [
-        { data: "Contributions" },
-        { data: "Author" },
-        { data: "Date" },
-        { data: "Annotations" },
-        { data: "type" },
-        { data: "content" },
-        { data: "title" },
-        { data: "contributor" },
-        { data: "discourseParts" },
-        { data: "startTime" },
-        { data: "annotations" }
-      ],
-      ajax: {
-        url: "https://localhost:5280/browsing/query",
-        data: {"query": {}},
-        type: "GET",
-        dataSrc: function(data) {
-          return data._embedded.browsingContributionResources
-        }
-      }
-  } );
-}
-*/

@@ -44,39 +44,52 @@
   </tbody>
   </table>
 </div>
+
+
 <div class="ui-layout-west unpadded" id="westpanel">
   <div id="select_discourseparts" class="unpadded">
   <h5>&nbsp;Select DiscourseParts</h5>
-  <div id="dps_tabs" class="unpadded">
-    <ul><li><a href="#jstree_dps_wrap">Explore</a></li>
-      <li><a href="#list_dps">List</a></li>
-    </ul>
-    <div id="jstree_dps_wrap" class="unpadded">
-      (<span id="jstree_selection_count">0</span> selected)
-      <div id="jstree_dps">
-      <!-- in this example the tree is populated from inline HTML -->
+    <div id="dps_tabs" class="unpadded">
+      <ul><li><a href="#jstree_dps_wrap">Explore</a></li>
+        <li><a href="#list_dps">List</a></li>
+      </ul>
+      <div id="jstree_dps_wrap" class="unpadded">
+        (<span id="jstree_selection_count">0</span> selected)
+        <div id="jstree_dps">
+        <!-- in this example the tree is populated from inline HTML -->
+        </div>
+      </div>
+      <div id="list_dps">
+        List of selected dps goes here, with delete affordance
       </div>
     </div>
-    <div id="list_dps">
-      List of selected dps goes here, with delete affordance
-    </div>
   </div>
+
 </div>
-  <div id="save_selection">
-  <select id="query_list">
-  <option value="(no saved query)">(no saved query)</option>
-</select><br/>
-  <button disabled id="save_query">Save</button><button disabled id="delete_query">Delete</button>
+
+
+
+<div id="status" class="overlay-box" style="display:none"></div>
+
+<div class="ui-layout-north" id="northpanel">
+   <div class="ui-layout-west " id="logopanel" style="float: left; height:100%">
+     <img src="resources/img/discoursedb_logo.png">
   </div>
-</div>
-<div class="ui-layout-north">
-   <img src="resources/img/discoursedb_logo.png">
-   <div class="rightinset" >
+
+
+   <div class="rightinset ui-layout-center" id="loginpanel" style="float: right">
      <div id="currentuser">Not logged in</div>
      <div id="signInButton" class="g-signin2" data-onsuccess="onSignIn"></div>
      <a href="#" id="signOutButton">Sign out</a>
    </div>
-
+   <div id="save_selection" class="ui-layout-east " style="margin: 0 auto; display:table">
+     <h4>Named data selection</h4>
+     <select id="query_list">
+     <option value="blank">blank</option>
+   </select>&nbsp;&nbsp;<text contenteditable="true" id="query_display_name" val="" style="display:none; border:1px solid grey; width:300"></text>
+     <br/>
+     <button disabled id="save_query">Remember</button><button disabled id="delete_query">Forget</button>
+   </div>
 </div>
 
 
@@ -85,23 +98,26 @@
     <div id="io_accordion" class="basic unpadded">
       <h3><a href="#">Annotate</a></h3>
       <div>
+        <h4>Annotate with BRAT</h4>
         <div id="annotation_projects"></div>
-        <hr/>
-        Allowable annotation tags:<br/>
+        <!--<hr/>
+        <h4>Annotation tags:</h4>
         <textarea id="annotation_tags">
 Transactive
 Reasoning
 Good
-NeedsImprovement</textarea><br/>
-        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;How to Annotate DiscourseDB data using Brat (read this before using!)</a>
+NeedsImprovement</textarea><br/>-->
+<br/>
+        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;Help! How to Annotate</a>
       </div>
       <h3><a href="#">Import/Export</a></h3>
       <div>
-        <button class="ui-button csv-button ui-widget ui-corner-all" id="csvexport_anno">CSV Export</button>
-        <button  class="ui-button csv-button ui-widget ui-corner-all" id="csvexport_noanno">CSV Export (no annotations)</button>
-        <button  class="ui-button csv-button ui-widget ui-corner-all" id="csvimport">Import Lightside labeling</button>
-        <br/>
-        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;How to use Lightside to infer labels in DiscourseDB (read this before using!)</a>
+        <button href="http://discoursedb.github.io/" class="when_something_selected ui-button csv-button ui-widget ui-corner-all" id="download_query_direct">Download as CSV</button>
+        <button class="when_something_selected ui-button csv-button ui-widget ui-corner-all" id="csvexport_anno">Export For Training<br/><small>(text, id, annos<br/>for Lightside)</small></button>
+        <button  class="when_something_selected ui-button csv-button ui-widget ui-corner-all" id="csvexport_noanno">Export For Learning<br/><small>(text &amp; id only<br/>for Lightside)</small></button>
+        <button  class="when_something_selected ui-button csv-button ui-widget ui-corner-all" id="csvimport">Export After Inference<br/><small>(Lightside annotations)</small></button>
+        <br/><br/>
+        <a href="http://discoursedb.github.io/" target="_blank"><i class="glyphicon glyphicon-question-sign"></i>&nbsp;Help! How to use external learning tools.</a>
       </div>
     </div></div>
 </div>

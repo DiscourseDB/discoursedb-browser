@@ -13,6 +13,26 @@
     width:auto;
 }
 
+.fakelink:hover
+{
+  text-decoration: underline;
+}
+
+.overlay-box {
+    background-color: #fff;
+    border: 5px solid black;
+    text-align:center;
+    height: 200px;/*height needs to be set*/
+    width: 300px;
+    margin: auto;
+    position: fixed;
+    word-wrap: break-word;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
 textarea
 {
     overflow-y:scroll;
