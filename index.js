@@ -697,20 +697,20 @@ function update_grid() {
         var api = $('#contributions').dataTable().api();
         api.ajax.url(baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
         api.ajax.reload();
-        api.columns.adjust();
+        //api.columns.adjust();
 	      api.draw();
       } else {
         $('#contributions').DataTable( {
           dom: 'lript',
           serverSide: true,
-          autoWidth: true,
+          //autoWidth: true,
           searching: false,
           ordering: false,
           columns: [
             { data: "contributor" },
             { data: "annotations" },
             { data: "type" },
-            { data: "content", width:"50%" },
+            { data: "content", width:"420" },
             { data: "title" },
             { data: "discourseParts" },
             { data: "startTime", width:"10%"},
@@ -732,6 +732,8 @@ function update_grid() {
             		    } else {
             		        json.data = [];
             		    }
+                    /*json.data.forEach((row) => Object.keys(row).forEach((key) => {
+                    if (typeof(row[key]) === "object") { row[key] = JSON.stringify(row[key]) }} ));*/
                     return JSON.stringify( json ); // return JSON string
                 }
             }
