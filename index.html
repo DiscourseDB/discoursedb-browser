@@ -48,7 +48,11 @@
 
 <div class="ui-layout-west unpadded" id="westpanel">
   <div id="select_discourseparts" class="unpadded">
-  <h5>&nbsp;Select DiscourseParts</h5>
+    <select id="database_list">
+    <option value=""></option>
+    </select>&nbsp;&nbsp;
+    <text contenteditable="true" id="database_display_name" val="" style="display:none; border:1px solid grey; width:300"></text>
+
     <div id="dps_tabs" class="unpadded">
       <ul><li><a href="#jstree_dps_wrap">Explore</a></li>
         <li><a href="#list_dps">List</a></li>
@@ -83,12 +87,16 @@
      <a href="#" id="signOutButton">Sign out</a>
    </div>
    <div id="save_selection" class="ui-layout-east " style="margin: 0 auto; display:table">
+
      <h4>Named data selection</h4>
      <select id="query_list">
      <option value="blank">blank</option>
-   </select>&nbsp;&nbsp;<text contenteditable="true" id="query_display_name" val="" style="display:none; border:1px solid grey; width:300"></text>
+   </select>&nbsp;&nbsp;
+   <text contenteditable="true" id="query_display_name" val="" style="display:none; border:1px solid grey; width:300"></text>
      <br/>
      <button disabled id="save_query">Remember</button><button disabled id="delete_query">Forget</button>
+
+
    </div>
 </div>
 

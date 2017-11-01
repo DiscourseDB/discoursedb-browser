@@ -1,11 +1,13 @@
 
 var baseUrl = "https://localhost:5980";
-var empty_server_query = { rows: { discourse_part: [] } };
-var blank_server_query = {propName: "blank", propValue: "{ \"rows\": { \"discourse_part\": [] } }"};
+var empty_server_query = { database: "", rows: { discourse_part: [] } };
+var blank_server_query = {propName: "blank", propValue: "{ \"database\": \"\", \"rows\": { \"discourse_part\": [] } }"};
 
 var model = {
-  query_content: empty_server_query,
-  server_query_list: [blank_server_query],
+  current_server_database_name: "",
+  server_database_list: [""],
+  query_content: $.extend(true,{},empty_server_query),
+  server_query_list: [$.extend(true,{},blank_server_query)],
   current_server_query_name: "",
   query_saved_state: "blank",   // blank | saved | unsaved
   brat_dirs: [],
@@ -26,6 +28,7 @@ var model = {
     }
     return false;*/
   },
+
   find_server_query(name) {
     //if (name === "blank") { return empty_server_query; }
     for (q in model.server_query_list) {
@@ -33,13 +36,16 @@ var model = {
           return JSON.parse(model.server_query_list[q]["propValue"]);
       }
     }
-    return empty_server_query;
+    return $.extend(true, {}, empty_server_query);
   },
   remove_query_item(dpid) {
     model.query_content.rows.discourse_part =
        model.query_content.rows.discourse_part.
           filter(function(i) { return i.dpid !== dpid; })
 
+  },
+  clear_query() {
+    model.query_content = $.extend(true,{},empty_server_query);
   },
   add_query_item(dpId, dpName) {
     this.remove_query_item(dpId);
@@ -73,6 +79,14 @@ var triggers = {
   query_content_changed() {  view.set_selections_from_query(); update_grid(); view.set_query_buttons(); model.set_query_name(undefined); view.update_name_display(); view.show_server_query_list(); view.populate_anno_projects();  },
   clicked_dp_checkbox() {  this.query_content_changed();  },
   server_query_list_changed() { view.show_server_query_list(); view.update_name_display(); },
+  database_selection_change() {
+    model.clear_query();
+    view.show_server_database_list();
+    this.after_upload_query_to_server();
+    this.query_content_changed();
+    dp_tree_refresh();
+    p_brat_dirs_refresh();
+  },
   save_query_clicked() {  p_upload_query_to_server().then(() =>
     { model.query_saved_state = "saved";
       view.set_query_buttons();
@@ -94,6 +108,9 @@ var triggers = {
 var view = {
   update_name_display() {
     $('#query_display_name').html(model.current_server_query_name);
+  },
+  update_database_display() {
+    $('#database_display_name').html(model.current_server_database_name);
   },
   populate_anno_projects() {
      if (model.query_saved_state === "blank") {
@@ -152,6 +169,16 @@ var view = {
   },
 
 
+  show_server_database_list() {
+    var dl = $('#database_list');
+    html = "";
+    $.each(model.server_database_list, function(i, item) {
+      if (item === model.current_server_database_name)
+         { sel = ' selected="selected" '; } else { sel = ""; }
+      html += '<option' + sel + '>' + item + '</option>';
+    });
+    dl.html(html);
+  },
   show_server_query_list() {
     var ql = $('#query_list');
     html = "";
@@ -184,6 +211,7 @@ p_upload_query_to_server = function() {
   if (model.is_query_saved() || model.query_saved_state === "blank") {
     return Promise.resolve();
   } else {
+    model.query_content.database = model.current_server_database_name;
     return myprompt('Please name this selection of ' +
         model.query_content.rows.discourse_part.length +
         ' discourse parts', $('#query_display_name').text())
@@ -216,6 +244,26 @@ $(document).ready(function() {
 
 });
 
+
+set_jstree_hooks = function() {
+    $('#jstree_dps').on('changed.jstree', function (eventt, objj) {
+      if (!triggers.ignoreJtreeClicks) {
+        console.log("JTREE", eventt);
+        var tree = $('#jstree_dps').jstree(true);
+        if (objj.node.state.selected && objj.node.id.startsWith("DP/")) {
+          model.add_query_item(objj.node.id.split("/")[1], objj.node.text);
+        } else if (!objj.node.state.selected && objj.node.id.startsWith("DP/")) {
+          model.remove_query_item(objj.node.id.split("/")[1]);
+        }
+        model.query_saved_state = "unsaved";
+        triggers.clicked_dp_checkbox();
+      }
+    });
+    $("#jstree_dps").on("open_node.jstree", function (e, data) {
+      triggers.jtree_expand_node  ();
+    });
+}
+
 /*
  *    Initialization of panes, trees, tables
  */
@@ -244,24 +292,14 @@ setup_components = function() {
   });
   $('#dps_tabs').tabs();
   $('#jstree_annos').jstree({ "plugins" : [ "checkbox" ] });
-  $('#jstree_dps').on('changed.jstree', function (eventt, objj) {
-    if (!triggers.ignoreJtreeClicks) {
-      console.log("JTREE", eventt);
-      var tree = $('#jstree_dps').jstree(true);
-      if (objj.node.state.selected && objj.node.id.startsWith("DP/")) {
-        model.add_query_item(objj.node.id.split("/")[1], objj.node.text);
-      } else if (!objj.node.state.selected && objj.node.id.startsWith("DP/")) {
-        model.remove_query_item(objj.node.id.split("/")[1]);
-      }
-      model.query_saved_state = "unsaved";
-      triggers.clicked_dp_checkbox();
-    }
-  });
-  $("#jstree_dps").on("open_node.jstree", function (e, data) {
-    triggers.jtree_expand_node  ();
-  });
+  set_jstree_hooks();
+
   $('#save_query').on('click', function (eventt, objj) {
     triggers.save_query_clicked();
+  });
+  $('#database_list').on('change', function (eventt) {
+    model.current_server_database_name = eventt.currentTarget.value;
+    triggers.database_selection_change();
   });
   $('#query_list').on('change', function (eventt) {
     if (!triggers.ignoreJtreeClicks) {
@@ -434,8 +472,32 @@ p_query_list_refresh = function () {
     },
     url: baseUrl + '/browsing/prop_list?ptype=query'}).then(
     function(datback) {
-         model.server_query_list = [blank_server_query].concat(datback);
+         model.server_query_list = [$.extend(true,{},blank_server_query)].concat(
+              datback.filter( function (q) { return q.database===model.current_server_database_name} ));
          triggers.server_query_list_changed();
+    }).fail((err) => {inform_status(err)});
+}
+
+/*
+*  Refresh the list of saved queries
+*/
+p_database_list_refresh = function () {
+  return $.ajax({
+    type: 'GET',
+    xhrFields: { withCredentials: ($.access_token != null) },
+    beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    url: baseUrl + '/browsing/databases'}).then(
+    function(datback) {
+         console.log(datback);
+         if (datback._embedded.browsingDatabasesResources.length > 0) {
+           model.server_database_list = datback._embedded.browsingDatabasesResources[0].databases;
+           model.current_server_database_name=model.server_database_list[0];
+         } else {
+           model.server_database_list = [];
+         }
+
     }).fail((err) => {inform_status(err)});
 }
 
@@ -443,18 +505,19 @@ p_query_list_refresh = function () {
 jstree_node2url = function (node) {
   /* # -> root;    /browsing/stats
    * D/1 -> Discourse 1 p1 of 1       /browsing/discourses/1
-   * DT/1/3/2   -> Disc 1 type 3 p2   /browsing/discourses/1/discoursePartTypes/3?page=2
+   * DT/1/3/2   -> Disc 1 type 3 p2   /browsing/1/discoursePartTypes/3?page=2
    * DP/1/2  -> DiscoursePart 1 page 1   /browsing/subDiscourseParts/1?page=2
    *
    *
    */
   current_context.node_id = node.id;
-  if (node.id === '#') { return baseUrl + "/browsing/stats"; }
+  if (node.id === '#') { return baseUrl + "/browsing/database/" + model.current_server_database_name + "/stats"; }
   var parts = node.id.split("/");
-  if (parts[0] === "D") { return baseUrl + "/browsing/discourses/" + parts[1]; }
-  if (parts[0] === "DT") { return baseUrl + "/browsing/discourses/" +
+  if (parts[0] === "D") { return baseUrl + "/browsing/database/" + model.current_server_database_name +"/discourses/" + parts[1]; }
+  if (parts[0] === "DT") { return baseUrl + "/browsing/database/" + model.current_server_database_name + "/discourses/" +
       parts[1] + "/discoursePartTypes/" + parts[2] + "?page=" + parts[3]; }
-  if (parts[0] === "DP") { return baseUrl + "/browsing/subDiscourseParts/" + parts[1]
+  if (parts[0] === "DP") { return baseUrl + "/browsing/database/" + model.current_server_database_name +
+          "/subDiscourseParts/" + parts[1]
           + "?page=" + parts[2]; }
 }
 
@@ -628,6 +691,7 @@ dpsTopLevelDataFilter = function(data) {
 
 var current_context = new Object();
 var dp_tree_refresh = function() {
+  $('#jstree_dps').jstree("destroy");
   $('#jstree_dps').jstree({
       core: {
         data: {
@@ -644,7 +708,9 @@ var dp_tree_refresh = function() {
   types: dptype2icon,
 
   "plugins" : [ "wholerow", "checkbox", "types" ]
-  });
+});
+set_jstree_hooks();
+//$('#jstree_dps').jstree("refresh");
 }
 
 
@@ -679,9 +745,12 @@ var dp_tree_refresh = function() {
    $("#currentuser").html("Current user: " + profile.getName());
    $("#signInButton").hide();
    $("#signOutButton").show();
-   p_query_list_refresh();
-   dp_tree_refresh();
-   p_brat_dirs_refresh();
+   p_database_list_refresh().then(() => {
+     view.show_server_database_list();
+     p_query_list_refresh();
+     dp_tree_refresh();
+     p_brat_dirs_refresh();
+   });
  }
 
  /*
@@ -691,7 +760,9 @@ var dp_tree_refresh = function() {
 var firstTime = true;
 function update_grid() {
       var query = model.query_content;
-
+      if (model.query_content.database.length == 0) {
+        model.query_content.database = model.current_server_database_name;
+      }
       console.log("Updating grid with query results: " + JSON.stringify(query));
       if (firstTime == false) {
         var api = $('#contributions').dataTable().api();
