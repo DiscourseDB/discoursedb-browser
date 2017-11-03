@@ -386,7 +386,7 @@ p_brat_dirs_refresh = function() {
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
     },
-    url: baseUrl + '/browsing/bratExports'}).then(
+    url: baseUrl + '/browsing/database/' + model.current_server_database_name + '/bratExports'}).then(
     (datback) => {
       return new Promise(function(g,b) {
         try {
@@ -473,7 +473,7 @@ p_query_list_refresh = function () {
     url: baseUrl + '/browsing/prop_list?ptype=query'}).then(
     function(datback) {
          model.server_query_list = [$.extend(true,{},blank_server_query)].concat(
-              datback.filter( function (q) { return q.database===model.current_server_database_name} ));
+              datback.filter( function (q) { return JSON.parse(q.propValue).database===model.current_server_database_name} ));
          triggers.server_query_list_changed();
     }).fail((err) => {inform_status(err)});
 }
