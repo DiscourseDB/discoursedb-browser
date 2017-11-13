@@ -3,14 +3,28 @@
     display:none
 }
 
-.dataTable th
+#contributions th
 {
     overflow:hidden;
+    word-break: normal;
+    text-overflow: ellipsis;
 }
-.dataTable th:hover
+#contributions td
+{
+    overflow:hidden;
+
+}
+#contributions td:hover
 {
     overflow:initial;
     width:auto;
+    background-color:white;
+}
+#contributions th:hover
+{
+    overflow:initial;
+    width:auto;
+    background-color:white;
 }
 
 .fakelink:hover

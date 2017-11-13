@@ -93,9 +93,9 @@ var triggers = {
       view.update_name_display();
       view.show_server_query_list();
       view.populate_anno_projects(); }).catch((err) => {inform_status(err)}); },
-  download_query_clicked() {
+  /*download_query_clicked() {
     download_query_csv();
-  },
+  },*/
   after_upload_query_to_server() {  p_query_list_refresh(); view.populate_anno_projects(); view.set_query_buttons(); },
   query_selection_change() {   view.update_name_display(); view.set_selections_from_query(); view.set_query_buttons(); view.populate_anno_projects(); update_grid(); },
   jtree_expand_node() { view.set_selections_from_query(); },
@@ -137,6 +137,21 @@ var view = {
       $('.when_something_selected').attr('disabled', model.query_saved_state == "blank");
       $('#download_query_direct').attr('href',
         baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" + encodeURIComponent(JSON.stringify(model.query_content)));
+      $('#csvexport_noanno').attr('href',
+          baseUrl + "/browsing/action/" +
+               'downloadLightsideQuery/unannotated.csv?' +
+               "query=" + encodeURIComponent(JSON.stringify(model.query_content))
+             + "&withAnnotations=false" );
+      $('#csvexport_anno').attr('href',
+                 baseUrl + "/browsing/action/" +
+                      'downloadLightsideQuery/annotated.csv?' +
+                      "query=" + encodeURIComponent(JSON.stringify(model.query_content))
+                    + "&withAnnotations=true" );
+      /*$('#csvimport').attr('href',
+                 baseUrl + "/browsing/action/" +
+                      'database/' + model.current_server_query_name + '/uploadLightside?' +
+                      "query=" + encodeURIComponent(JSON.stringify(model.query_content))
+                    + "&withAnnotations=true" );*/
   },
   set_selections_from_query() {
     // TODO: prop_new should replace if type and name are the same
@@ -167,7 +182,6 @@ var view = {
     });
     $("#list_dps").html(lst);
   },
-
 
   show_server_database_list() {
     var dl = $('#database_list');
@@ -280,12 +294,7 @@ setup_components = function() {
       center__paneSelector: "#select_discourseparts",
       applyDefaultStyles: true
   });
-
-  $('#contributions').colResizable({
-      liveDrag:true,
-      gripInnerHtml:"<div class='grip'></div>",
-      draggingClass:"dragging"
-  });
+  set_resizable();
   $("#io_accordion").accordion({
        heightStyle:    "content",
        active: 1
@@ -338,14 +347,51 @@ setup_components = function() {
   $('#download_query_direct').on('click', function(eventt, objj) {
     window.open($('#download_query_direct').attr("href"), "_blank");
   });
+  $('#csvexport_anno').on('click', function(eventt, objj) {
+    window.open($('#csvexport_anno').attr("href"), "_blank");
+  });
+  $('#csvexport_noanno').on('click', function(eventt, objj) {
+    window.open($('#csvexport_noanno').attr("href"), "_blank");
+  });
+
+  $('#csvimport_trigger').on('click', function() {
+    $('#csvimport')[0].value="";
+    $('#csvimport').click();
+  });
+  $('#csvimport').on('change', function () {
+    upload_annotations().then( function() {
+      update_grid();
+    });
+  });
   view.set_query_buttons();
+}
+
+
+upload_annotations = function() {
+  return $.ajax({   //SBM
+    target: '#output',
+    type: 'POST',
+    data: new FormData($('#uploadLightsideForm')[0]),
+    url: baseUrl + "/browsing/action/database/" + model.current_server_database_name + "/uploadLightside",
+    xhrFields: { withCredentials: true },
+    processData: false,
+    contentType: false,
+    beforeSend: function (xhr) {
+        xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    success: function (result, statusText, xhr, $form) {
+         // no need to act
+         return;
+    }
+  }).done(function(th) { inform_success("Successful upload. " + JSON.stringify(th)); })
+  .fail((err) => {inform_error(err)});
 }
 
 start_spinner = function () {$('#status').html("").css('background', 'url(resources/img/loading.gif) no-repeat').css('display','block');}
 stop_spinner = function() {$('#status').css('background', 'white').css('display','block'); window.setTimeout(hide_spinner,3000);}
 hide_spinner = function() {$('#status').css('display','none');}
 
-inform_status = function(info) {
+inform = function(info, header) {
   if (info === "") { stop_spinner(); hide_spinner(); return; }
   if (info.hasOwnProperty("responseJSON")) {
     info = info.responseJSON.error + ":" +  info.responseJSON.message;
@@ -356,8 +402,12 @@ inform_status = function(info) {
   }
   console.log("STATUS: ", info);
   stop_spinner();
-  $('#status').html("<h2>Error</h2><p>" + info + "</p>");
+  $('#status').html("<h2>" + header + "</h2><p>" + info + "</p>");
 }
+inform_success = function(info) { inform(info, "Success"); }
+inform_status = function(info) {inform(info, "Result"); }
+inform_error = function(info) {inform(info, "Error"); }
+
 
 sanitize_query_name = function(qn) {
   return qn.replace("[^a-zA-Z0-9\\._]", "_");
@@ -365,7 +415,8 @@ sanitize_query_name = function(qn) {
 
 download_query_csv = function() {
   return $.ajax({
-    url: baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" + encodeURIComponent(JSON.stringify(model.query_content)),
+    url: baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv",
+    data: { query : model.query_content }, //encodeURIComponent(JSON.stringify(model.query_content)),
     type: 'GET',
     xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
@@ -376,7 +427,26 @@ download_query_csv = function() {
         window.location = 'discoursedb_data.csv';
     }
   }).done(function(th) { console.log("THENN" + th); })
-  .fail((err) => {inform_status(err)});
+  .fail((err) => {inform_error(err)});
+}
+
+download_lightside_csv = function(withAnno) {
+  filename = "lightside_" + model.current_server_database_name + ".csv"
+  return $.ajax({
+    url: baseUrl + "/browsing/action/downloadLightsideQuery/" + filename ,
+    data: { withAnnotations: withAnno?"true":"false",
+            query: model.query_content },
+    type: 'GET',
+    xhrFields: { withCredentials: ($.access_token != null) },
+    beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    success: function() {
+        console.log("Here");
+        window.location = filename;
+    }
+  }).done(function(th) { console.log("THENN" + th); })
+  .fail((err) => {inform_error(err)});
 }
 
 p_brat_dirs_refresh = function() {
@@ -399,7 +469,7 @@ p_brat_dirs_refresh = function() {
            b(e);
          }
        })
-    }).fail((err) => {inform_status(err)});
+    }).fail((err) => {inform_error(err)});
 }
 
 
@@ -414,7 +484,7 @@ delete_brat_dir = function(href) {
           function(datback) {
                model.brat_dirs = datback._embedded.browsingBratExportResources;
                triggers.brat_dirs_changed();
-          }).fail((err) => {inform_status(err)});;
+          }).fail((err) => {inform_error(err)});;
 }
 
 import_brat_dir = function(href) {
@@ -423,10 +493,12 @@ import_brat_dir = function(href) {
           beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
           },
-          url: href})
+          url: href })
   .then(function (g,b) { update_grid(); })
-  .fail((err) => {inform_status(err)});
+  .fail((err) => {inform_error(err)});
 }
+
+
 
 create_brat_dir = function() {
   start_spinner();
@@ -443,7 +515,7 @@ create_brat_dir = function() {
               exportDirectory: model.current_server_query_name,
               dpId: dpid
             },
-            url: baseUrl + "/browsing/action/exportBratItem"});
+            url: baseUrl + "/browsing/action/database/" + model.current_server_database_name + "/exportBratItem"});
       });
       Promise.all(calls).then(() =>  p_brat_dirs_refresh() )
         // TODO: Add endpoint to read/write brat config file
@@ -470,12 +542,30 @@ p_query_list_refresh = function () {
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
     },
-    url: baseUrl + '/browsing/prop_list?ptype=query'}).then(
+    data: { ptype: "query" },
+    url: baseUrl + '/browsing/prop_list'}).then(
     function(datback) {
          model.server_query_list = [$.extend(true,{},blank_server_query)].concat(
               datback.filter( function (q) { return JSON.parse(q.propValue).database===model.current_server_database_name} ));
          triggers.server_query_list_changed();
-    }).fail((err) => {inform_status(err)});
+    }).fail((err) => {inform_error(err)});
+}
+
+
+/*
+*  Refresh the list of saved queries
+*/
+test_roles = function () {
+  return $.ajax({
+    type: 'GET',
+    xhrFields: { withCredentials: ($.access_token != null) },
+    beforeSend: function (xhr) {
+              xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+    },
+    url: baseUrl + '/browsing/roles'}).then(
+    function(datback) {
+         console.log(datback);
+    }).fail((err) => {inform_error(err)});
 }
 
 /*
@@ -498,7 +588,7 @@ p_database_list_refresh = function () {
            model.server_database_list = [];
          }
 
-    }).fail((err) => {inform_status(err)});
+    }).fail((err) => {inform_error(err)});
 }
 
 
@@ -681,7 +771,18 @@ dpsTopLevelDataFilter = function(data) {
   return JSON.stringify(retval);
 }
 
-
+var set_resizable = function() {
+    //$('#contributions').colResizable({disabled:true});
+    var cc = $('#contributions');
+    cc.resizable({handles: "e"});
+    cc.colResizable({
+        liveDrag:true,
+        headerOnly: true,
+        gripInnerHtml:"<div class='grip'></div>",
+        draggingClass:"dragging"
+    });
+    cc.width(cc.width());
+}
 
 
 
@@ -753,6 +854,10 @@ set_jstree_hooks();
    });
  }
 
+function expand_annotations(record) {
+  return record.map((r) => r.type + " " + r.features.join(";")).join(",");
+}
+
  /*
  *   Populate the grid
    https://datatables.net/reference/option/ajax
@@ -768,8 +873,11 @@ function update_grid() {
         var api = $('#contributions').dataTable().api();
         api.ajax.url(baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
         api.ajax.reload();
-        //api.columns.adjust();
+
+        api.columns.adjust();
 	      api.draw();
+        set_resizable();
+
       } else {
         $('#contributions').DataTable( {
           dom: 'lript',
@@ -777,6 +885,8 @@ function update_grid() {
           //autoWidth: true,
           searching: false,
           ordering: false,
+          //sScrollX: false,
+          //sScrollY: false,
           columns: [
             { data: "contributor" },
             { data: "annotations" },
@@ -788,6 +898,9 @@ function update_grid() {
 	          { data: "contributionId" },
             { data: "parentId" }
           ],
+          initComplete: function(settings) {
+            set_resizable();
+          },
           ajax: {
                 url: baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)),
                 xhrFields: { withCredentials: ($.access_token != null) },
@@ -800,9 +913,10 @@ function update_grid() {
                     json.recordsFiltered = json.page.totalElements;
                     if (json._embedded) {
                         json.data = json._embedded.browsingContributionResources;
+                        json.data.forEach((k) => k.annotations = expand_annotations(k.annotations));
             		    } else {
             		        json.data = [];
-            		    }
+            		    };
                     /*json.data.forEach((row) => Object.keys(row).forEach((key) => {
                     if (typeof(row[key]) === "object") { row[key] = JSON.stringify(row[key]) }} ));*/
                     return JSON.stringify( json ); // return JSON string
