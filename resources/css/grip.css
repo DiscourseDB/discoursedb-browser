@@ -1,0 +1,39 @@
+.grip {
+    width:20px;
+    height:30px;
+    margin-top:-3px;
+    background-image:url(../img/grip.png);
+    margin-left:-5px;
+    position:relative;
+    z-index:88;
+    cursor:e-resize}
+
+.grip:hover {
+    background-position-x:-20px}
+
+.dragging .grip {
+    background-position-x:-40px}
+
+.grip2{
+    width:20px;
+    height:15px;
+    margin-top:-3px;
+    background-image:url('../img/grip2.png');
+    margin-left:-5px;
+    position:relative;
+    z-index:88;
+    cursor:e-resize;
+    background-repeat: no-repeat;
+}
+
+.grip2:hover{
+    background-position-x:-20px;
+}
+
+.dragging .grip2{
+    background-position-x:-40px;
+}
+.JCLRLastGrip .grip2{
+    background-position-y:-18px;
+    left:-2px;
+}
