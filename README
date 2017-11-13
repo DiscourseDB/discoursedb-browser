@@ -1,8 +1,12 @@
 
-DiscourseDB browser, Version 2
+DiscourseDB browser, Version 0.8-SNAPSHOT
 
+This is a web interface to DiscourseDB, that allows authenticated users to browse and
+export data from multiple DiscourseDB databases.
 
-Running locally as a test
+TODO: add setup instructions here, including key/certificate
+
+To run locally as a test without bothering to register certificates:
    Run the server in Eclipse
    must first go to https://localhost:5980, try to access it and fail, and approve the risky access.
    Make sure you've added your own google ID to the database as a user
