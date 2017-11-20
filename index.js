@@ -1,5 +1,5 @@
 
-var baseUrl = "https://localhost:5980";
+var baseUrl = "https://erebor.lti.cs.cmu.edu:5398"
 var empty_server_query = { database: "", rows: { discourse_part: [] } };
 var blank_server_query = {propName: "blank", propValue: "{ \"database\": \"\", \"rows\": { \"discourse_part\": [] } }"};
 
@@ -394,7 +394,13 @@ hide_spinner = function() {$('#status').css('display','none');}
 inform = function(info, header) {
   if (info === "") { stop_spinner(); hide_spinner(); return; }
   if (info.hasOwnProperty("responseJSON")) {
-    info = info.responseJSON.error + ":" +  info.responseJSON.message;
+    if (info.responseJSON.exception == "edu.cmu.cs.lti.discoursedb.api.browsing.controller.BrowsingRestController$UnauthorizedDatabaseAccess") {
+        $("#applyForAccount").show();
+        info = $("#applyForAccount").innerHtml;
+        signOut();
+    } else {
+        info = info.responseJSON.error + ":" +  info.responseJSON.message;
+    }
   } else if (info.hasOwnProperty("message")) {
     info = info.message;
   } else {
@@ -826,6 +832,7 @@ set_jstree_hooks();
          $("#currentuser").html("Current user: (none)");
          $("#signInButton").show();
          $("#signOutButton").hide();
+         $("#applyForAccount").show();
      });
      return false;
  }
@@ -847,6 +854,7 @@ set_jstree_hooks();
    $("#signInButton").hide();
    $("#signOutButton").show();
    p_database_list_refresh().then(() => {
+     $("#applyForAccount").hide();
      view.show_server_database_list();
      p_query_list_refresh();
      dp_tree_refresh();
