@@ -1,5 +1,4 @@
 
-var baseUrl = "https://erebor.lti.cs.cmu.edu:5398"
 var empty_server_query = { database: "", rows: { discourse_part: [] } };
 var blank_server_query = {propName: "blank", propValue: "{ \"database\": \"\", \"rows\": { \"discourse_part\": [] } }"};
 
@@ -87,6 +86,14 @@ var triggers = {
     dp_tree_refresh();
     p_brat_dirs_refresh();
   },
+  delete_query_clicked() {
+    p_delete_query_from_server().done(() => {
+      model.query_saved_state = "unsaved";
+      view.set_query_buttons();
+      view.update_name_display();
+      view.show_server_query_list();
+      view.populate_anno_projects(); }).fail((err) => {inform_status(err)});
+  },
   save_query_clicked() {  p_upload_query_to_server().then(() =>
     { model.query_saved_state = "saved";
       view.set_query_buttons();
@@ -164,13 +171,14 @@ var view = {
     $('#jstree_selection_count').html(dplist.length);
     for (i = 0; i < v.length; i++) {
        var z = v[i];
+       ignore = triggers.ignoreJtreeClicks;
        triggers.ignoreJtreeClicks = true;
-       if (dplist.includes(z["id"])) {
+       if (dplist.includes(z["id"]) && !t.is_checked(z["id"])) {
          t.check_node(z["id"]);
-       } else {
+       } else if (!dplist.includes(z["id"]) && t.is_checked(z["id"])) {
          t.uncheck_node(z["id"]);
        }
-       triggers.ignoreJtreeClicks = false;
+       triggers.ignoreJtreeClicks = ignore;
 
     }
     // also write list to $('#dps_list') along with a delete icon
@@ -220,6 +228,29 @@ myprompt = function(question, defaulty) {
   });
 }
 
+p_delete_query_from_server = function() {
+  var chosenName = "";
+  if (!model.is_query_saved() || model.query_saved_state === "blank") {
+    return Promise.resolve();
+  } else {
+    model.query_content.database = model.current_server_database_name;
+     return $.ajax({
+          type: 'GET',
+          /*xhrFields: { withCredentials: ($.access_token != null) },
+          beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
+          },*/
+          data: {
+            "ptype": "query",
+            "pname": model.current_server_query_name
+          },
+          url: baseUrl + '/browsing/prop_del'})
+    .done(() => { p_query_list_refresh();  })
+    .done(() => { model.set_query_name(undefined); model.query_saved_state = "unsaved"; })
+    .fail((err) => {inform_status(err)});
+  }
+}
+
 p_upload_query_to_server = function() {
   var chosenName = "";
   if (model.is_query_saved() || model.query_saved_state === "blank") {
@@ -233,10 +264,10 @@ p_upload_query_to_server = function() {
        chosenName = newname;
        return $.ajax({
           type: 'POST',
-          xhrFields: { withCredentials: ($.access_token != null) },
+          /*xhrFields: { withCredentials: ($.access_token != null) },
           beforeSend: function (xhr) {
                     xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-          },
+          },*/
           data: {
             "ptype": "query",
             "pname": newname,
@@ -257,7 +288,6 @@ $(function () {
 $(document).ready(function() {
 
 });
-
 
 set_jstree_hooks = function() {
     $('#jstree_dps').on('changed.jstree', function (eventt, objj) {
@@ -305,6 +335,9 @@ setup_components = function() {
 
   $('#save_query').on('click', function (eventt, objj) {
     triggers.save_query_clicked();
+  });
+  $('#delete_query').on('click', function (eventt, objj) {
+    triggers.delete_query_clicked();
   });
   $('#database_list').on('change', function (eventt) {
     model.current_server_database_name = eventt.currentTarget.value;
@@ -373,12 +406,12 @@ upload_annotations = function() {
     type: 'POST',
     data: new FormData($('#uploadLightsideForm')[0]),
     url: baseUrl + "/browsing/action/database/" + model.current_server_database_name + "/uploadLightside",
-    xhrFields: { withCredentials: true },
-    processData: false,
-    contentType: false,
+    /*xhrFields: { withCredentials: true },
     beforeSend: function (xhr) {
         xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
+    processData: false,
+    contentType: false,
     success: function (result, statusText, xhr, $form) {
          // no need to act
          return;
@@ -424,10 +457,10 @@ download_query_csv = function() {
     url: baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv",
     data: { query : model.query_content }, //encodeURIComponent(JSON.stringify(model.query_content)),
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     success: function() {
         console.log("Here");
         window.location = 'discoursedb_data.csv';
@@ -443,10 +476,10 @@ download_lightside_csv = function(withAnno) {
     data: { withAnnotations: withAnno?"true":"false",
             query: model.query_content },
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     success: function() {
         console.log("Here");
         window.location = filename;
@@ -458,10 +491,10 @@ download_lightside_csv = function(withAnno) {
 p_brat_dirs_refresh = function() {
   return $.ajax({
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     url: baseUrl + '/browsing/database/' + model.current_server_database_name + '/bratExports'}).then(
     (datback) => {
       return new Promise(function(g,b) {
@@ -470,6 +503,8 @@ p_brat_dirs_refresh = function() {
            triggers.brat_dirs_changed();
            g("done");
          } catch (e) {
+           console.log("Could not make sense in brat-dirs-refresh, of:");
+           console.log(datback);
            model.brat_dirs = [];
            triggers.brat_dirs_changed();
            b(e);
@@ -482,10 +517,10 @@ p_brat_dirs_refresh = function() {
 
 delete_brat_dir = function(href) {
   return $.ajax({type: 'GET',
-          xhrFields: { withCredentials: ($.access_token != null) },
+          /*xhrFields: { withCredentials: ($.access_token != null) },
           beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-          },
+          },*/
           url: href}).then(
           function(datback) {
                model.brat_dirs = datback._embedded.browsingBratExportResources;
@@ -495,10 +530,10 @@ delete_brat_dir = function(href) {
 
 import_brat_dir = function(href) {
   return $.ajax({type: 'GET',
-          xhrFields: { withCredentials: ($.access_token != null) },
+          /*xhrFields: { withCredentials: ($.access_token != null) },
           beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-          },
+          },*/
           url: href })
   .then(function (g,b) { update_grid(); })
   .fail((err) => {inform_error(err)});
@@ -513,10 +548,10 @@ create_brat_dir = function() {
       var calls =  model.query_content2dplist().map(function(dpid) {
         console.log("Exporting one BRAT element: ", dpid);
         return $.ajax({type: 'GET',
-            xhrFields: { withCredentials: ($.access_token != null) },
+            /*xhrFields: { withCredentials: ($.access_token != null) },
             beforeSend: function (xhr) {
                 xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-            },
+            },*/
             data: {
               exportDirectory: model.current_server_query_name,
               dpId: dpid
@@ -544,10 +579,10 @@ create_brat_dir = function() {
 p_query_list_refresh = function () {
   return $.ajax({
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     data: { ptype: "query" },
     url: baseUrl + '/browsing/prop_list'}).then(
     function(datback) {
@@ -564,10 +599,10 @@ p_query_list_refresh = function () {
 test_roles = function () {
   return $.ajax({
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     url: baseUrl + '/browsing/roles'}).then(
     function(datback) {
          console.log(datback);
@@ -580,10 +615,10 @@ test_roles = function () {
 p_database_list_refresh = function () {
   return $.ajax({
     type: 'GET',
-    xhrFields: { withCredentials: ($.access_token != null) },
+    /*xhrFields: { withCredentials: ($.access_token != null) },
     beforeSend: function (xhr) {
               xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-    },
+    },*/
     url: baseUrl + '/browsing/databases'}).then(
     function(datback) {
          console.log(datback);
@@ -805,10 +840,10 @@ var dp_tree_refresh = function() {
           context: current_context,
           url: jstree_node2url,
           type: 'GET',
-          xhrFields: { withCredentials: ($.access_token != null) },
+          /*xhrFields: { withCredentials: ($.access_token != null) },
           beforeSend: function (xhr) {
                     xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-          },
+          },*/
           dataFilter: dpsTopLevelDataFilter,
         }
      },
@@ -820,47 +855,48 @@ set_jstree_hooks();
 //$('#jstree_dps').jstree("refresh");
 }
 
+function signOut() {
+  console.log("In signout function");
+  authorizer["serviceSignout"]().then(function () {
+    console.log("Signed out");
+    $("#currentuser").html("Current user: (none)");
+    $("#signInButton").show();
+    $("#signOutButton").hide();
+    $("#applyForAccount").show();
+    model.server_database_list = [];
+    view.show_server_database_list();
+    model.server_query_list = [];
+    triggers.server_query_list_changed();
+    dp_tree_refresh();
+    model.brat_dirs = [];
+    triggers.brat_dirs_changed();
 
-/*
- *    Log in, Log out
- */
- function signOut() {
-     var auth2 = gapi.auth2.getAuthInstance();
-     auth2.signOut().then(function () {
-         console.log('User signed out.');
- 	       $.access_token = null;
-         $("#currentuser").html("Current user: (none)");
-         $("#signInButton").show();
-         $("#signOutButton").hide();
-         $("#applyForAccount").show();
-     });
-     return false;
- }
+  });
+}
 
- $("#signOutButton").on('click', function(e) {
-    e.preventDefault();
-    signOut();
-    });
+$("#signOutButton").on('click', function (e) {
+  console.log("HERE!");
+  signOut();
+  e.preventDefault();
+  return false;
+});
 
- function onSignIn(googleUser) {
-   var profile = googleUser.getBasicProfile();
-   console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.
-   console.log('Name: ' + profile.getName());
-   console.log('Image URL: ' + profile.getImageUrl());
-   console.log('Email: ' + profile.getEmail());
-   $.access_token = googleUser.getAuthResponse().id_token;
-   var dt = new Date().toLocaleString();
-   $("#currentuser").html("Current user: " + profile.getName());
-   $("#signInButton").hide();
-   $("#signOutButton").show();
-   p_database_list_refresh().then(() => {
-     $("#applyForAccount").hide();
-     view.show_server_database_list();
-     p_query_list_refresh();
-     dp_tree_refresh();
-     p_brat_dirs_refresh();
-   });
- }
+
+console.log("in index: window.authorizer=", window.authorizer);
+authorizer["onSignIn"] = function() {
+  $("#currentuser").html("Current user: " + authorizer.name);
+  $("#signInButton").hide();
+  $("#signOutButton").show();
+  p_database_list_refresh().then(() => {
+    $("#applyForAccount").hide();
+    view.show_server_database_list();
+    p_query_list_refresh();
+    dp_tree_refresh();
+    p_brat_dirs_refresh();
+  });
+}
+
+
 
 function expand_annotations(record) {
   return record.map((r) => r.type + " " + r.features.join(";")).join(",");
@@ -911,10 +947,10 @@ function update_grid() {
           },
           ajax: {
                 url: baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)),
-                xhrFields: { withCredentials: ($.access_token != null) },
+                /*xhrFields: { withCredentials: ($.access_token != null) },
                 beforeSend: function (xhr) {
                           xhr.setRequestHeader("Authorization", "BEARER " + $.access_token);
-                },
+                },*/
                 dataFilter: function(data){
                     var json = jQuery.parseJSON( data );
                     json.recordsTotal = json.page.totalElements;
