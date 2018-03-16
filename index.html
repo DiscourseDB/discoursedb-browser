@@ -82,18 +82,22 @@
 
 
    <div class="rightinset ui-layout-center" id="loginpanel" style="float: right">
-     <div id="currentuser">Not logged in</div>
      <div id="signInBasic">
-       Sign in directly
-       <input id="basicUser" value="">
-       <input id="basicPass" type="password" value="">
-       <button id="BsignInButton" onclick="BasicSignIn()"/>
+       Your email: <input id="basicUser" value=""><br/>
+       Password: <input id="basicPass" type="password" value=""><br/>
+       <button id="BsignInButton" onclick="BasicSignIn()"/>Login</button>
+       </div>
+     <div id="signInGoogle">
+         Or use google to sign in:
+         <div id="signInButton" class="g-signin2" data-onsuccess="GoogleSignIn"></div>
      </div>
-     Or use google to sign in:
-     <div id="signInButton" class="g-signin2" data-onsuccess="GoogleSignIn"></div>
-     <a href="#" id="signOutButton">Sign out</a>
+     <div id="signedInDisplay">
+          <div id="currentuser">Not logged in</div>
+          <a href="#" id="signOutButton">Sign out</a>
+     </div>
      <br><b><a id="applyForAccount" href="https://discoursedb.github.io/signup">Apply for an account</a></b>
    </div>
+
    <div id="save_selection" class="ui-layout-east " style="margin: 0 auto; display:table">
 
      <h4>Named data selection</h4>

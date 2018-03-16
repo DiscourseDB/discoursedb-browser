@@ -143,7 +143,8 @@ var view = {
       $('#save_query').prop('disabled', model.query_saved_state !== "unsaved");
       $('.when_something_selected').attr('disabled', model.query_saved_state == "blank");
       $('#download_query_direct').attr('href',
-        baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" + encodeURIComponent(JSON.stringify(model.query_content)));
+        baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" +
+        encodeURIComponent(JSON.stringify(model.query_content)));
       $('#csvexport_noanno').attr('href',
           baseUrl + "/browsing/action/" +
                'downloadLightsideQuery/unannotated.csv?' +
@@ -397,6 +398,7 @@ setup_components = function() {
     });
   });
   view.set_query_buttons();
+  showLoginState("out");
 }
 
 
@@ -427,13 +429,17 @@ hide_spinner = function() {$('#status').css('display','none');}
 inform = function(info, header) {
   if (info === "") { stop_spinner(); hide_spinner(); return; }
   if (info.hasOwnProperty("responseJSON")) {
-    if (info.responseJSON.exception == "edu.cmu.cs.lti.discoursedb.api.browsing.controller.BrowsingRestController$UnauthorizedDatabaseAccess") {
+    if (info.responseJSON.exception ==
+      "edu.cmu.cs.lti.discoursedb.api.browsing.controller.BrowsingRestController$UnauthorizedDatabaseAccess") {
         $("#applyForAccount").show();
         info = $("#applyForAccount").innerHtml;
         signOut();
     } else {
         info = info.responseJSON.error + ":" +  info.responseJSON.message;
     }
+  } else if (info.hasOwnProperty("responseText") && info["responseText"] == "Unknown User") {
+    info = "Unknown user or password";
+    signOut();
   } else if (info.hasOwnProperty("message")) {
     info = info.message;
   } else {
@@ -855,14 +861,35 @@ set_jstree_hooks();
 //$('#jstree_dps').jstree("refresh");
 }
 
+function showLoginState(st) {
+  if (st == "out") {
+    if (auths.indexOf("basic") >= 0) {
+      $("#signInBasic").show();
+    } else {
+      $("#signInBasic").hide();
+    }
+    if (auths.indexOf("google") >= 0) {
+      $("#signInGoogle").show();
+    }else {
+      $("#signInGoogle").hide();
+    }
+    $("#signedInDisplay").hide();
+    $("#applyForAccount").show();
+  } else if (st == "in") {
+    $("#signInGoogle").hide();
+    $("#signInBasic").hide();
+    $("#signedInDisplay").show();
+    $("#applyForAccount").hide();
+  }
+}
+
+
 function signOut() {
   console.log("In signout function");
   authorizer["serviceSignout"]().then(function () {
     console.log("Signed out");
+    showLoginState("out");
     $("#currentuser").html("Current user: (none)");
-    $("#signInButton").show();
-    $("#signOutButton").hide();
-    $("#applyForAccount").show();
     model.server_database_list = [];
     view.show_server_database_list();
     model.server_query_list = [];
@@ -885,10 +912,9 @@ $("#signOutButton").on('click', function (e) {
 console.log("in index: window.authorizer=", window.authorizer);
 authorizer["onSignIn"] = function() {
   $("#currentuser").html("Current user: " + authorizer.name);
-  $("#signInButton").hide();
-  $("#signOutButton").show();
+  showLoginState("in");
+
   p_database_list_refresh().then(() => {
-    $("#applyForAccount").hide();
     view.show_server_database_list();
     p_query_list_refresh();
     dp_tree_refresh();

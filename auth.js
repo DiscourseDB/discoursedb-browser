@@ -63,6 +63,6 @@ function BasicSignIn(googleUser) {
    "status": "unauthorized",   // or: google, github, basic, incommon, if logged in
    "name": "",
    "onSignIn": function(name) { console.log(name) },
-   "serviceSignout": function() { return new Promise(function(g,b) { console.log("Signing out"); }) }
+   "serviceSignout": function() { return new Promise(function(g,b) { console.log("Signing out"); deauth(); g(); }) }
  }
  console.log("window.authorizer=", window.authorizer);
