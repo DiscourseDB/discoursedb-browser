@@ -455,7 +455,7 @@ inform_error = function(info) {inform(info, "Error"); }
 
 
 sanitize_query_name = function(qn) {
-  return qn.replace("[^a-zA-Z0-9\\._]", "_");
+  return qn.replace(/[^a-zA-Z0-9\\._]/g, "_");
 }
 
 download_query_csv = function() {
