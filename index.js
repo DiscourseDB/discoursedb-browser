@@ -923,9 +923,12 @@ authorizer["onSignIn"] = function() {
 }
 
 
+function expand_features(features) {
+  return features.map((r) => "[" + r.type + ": " + r.value + "]").join(",");
+}
 
 function expand_annotations(record) {
-  return record.map((r) => r.type + " " + r.features.join(";")).join(",");
+  return record.map((r) => r.type + " " + expand_features(r.features)).join(",");
 }
 
  /*
