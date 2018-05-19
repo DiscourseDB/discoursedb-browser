@@ -924,11 +924,11 @@ authorizer["onSignIn"] = function() {
 
 
 function expand_features(features) {
-  return features.map((r) => "[" + r.type + ": " + r.value + "]").join(",");
+   return features.map((r) => (r.type?("[" + r.type + ":&nbsp;" + r.value + "]"):r.value)).join(" ");
 }
 
 function expand_annotations(record) {
-  return record.map((r) => r.type + " " + expand_features(r.features)).join(",");
+  return record.map((r) => r.type + ":&nbsp;" + expand_features(r.features)).join(", ");
 }
 
  /*
