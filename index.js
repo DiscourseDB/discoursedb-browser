@@ -422,7 +422,7 @@ upload_annotations = function() {
   .fail((err) => {inform_error(err)});
 }
 
-start_spinner = function () {$('#status').html("").css('background', 'url(resources/img/loading.gif) no-repeat').css('display','block');}
+start_spinner = function (msg) {$('#status').html(msg).css('background', 'url(resources/img/loading.gif) no-repeat').css('display','block');}
 stop_spinner = function() {$('#status').css('background', 'white').css('display','block'); window.setTimeout(hide_spinner,3000);}
 hide_spinner = function() {$('#status').css('display','none');}
 
@@ -548,7 +548,7 @@ import_brat_dir = function(href) {
 
 
 create_brat_dir = function() {
-  start_spinner();
+  start_spinner("Preparing data for BRAT");
 
   p_upload_query_to_server().then((g,b) => {
       var calls =  model.query_content2dplist().map(function(dpid) {
@@ -945,13 +945,17 @@ function update_grid() {
       if (firstTime == false) {
         var api = $('#contributions').dataTable().api();
         api.ajax.url(baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
-        api.ajax.reload();
+        start_spinner("Loading Data... Please wait");
+        api.ajax.reload(function() {
 
         api.columns.adjust();
 	      api.draw();
         set_resizable();
+        hide_spinner();
+        });
 
       } else {
+        start_spinner("Loading Data... Please wait");
         $('#contributions').DataTable( {
           dom: 'lript',
           serverSide: true,
@@ -992,6 +996,7 @@ function update_grid() {
             		    };
                     /*json.data.forEach((row) => Object.keys(row).forEach((key) => {
                     if (typeof(row[key]) === "object") { row[key] = JSON.stringify(row[key]) }} ));*/
+                    hide_spinner();
                     return JSON.stringify( json ); // return JSON string
                 }
             }
