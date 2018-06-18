@@ -174,7 +174,16 @@ var view = {
        var z = v[i];
        ignore = triggers.ignoreJtreeClicks;
        triggers.ignoreJtreeClicks = true;
-       if (dplist.includes(z["id"]) && !t.is_checked(z["id"])) {
+
+       // This logic assumes that get_json/flat lists parents before children, so we can see
+       //  whether we've already checked a parent, and automatically check the child as well.
+       //  checked children are disabled so that it hints to the user that they are selected
+       //  only because the parent is selected.
+      t.enable_checkbox(z["id"])
+      if (t.is_checked(z["parent"])) {
+         t.check_node(z["id"])
+         t.disable_checkbox(z["id"])
+       } else if ((dplist.includes(z["id"]) && !t.is_checked(z["id"])) ) {
          t.check_node(z["id"]);
        } else if (!dplist.includes(z["id"]) && t.is_checked(z["id"])) {
          t.uncheck_node(z["id"]);
@@ -942,11 +951,11 @@ function update_grid() {
       if (firstTime == false) {
         var api = $('#contributions').dataTable().api();
         api.ajax.url(baseUrl + "/browsing/query?query=" + encodeURIComponent(JSON.stringify(query)));
-        api.ajax.reload();
-
-        api.columns.adjust();
-	      api.draw();
-        set_resizable();
+        api.ajax.reload(function() {
+          api.columns.adjust();
+          api.draw();
+          set_resizable();
+        });
 
       } else {
         $('#contributions').DataTable( {
