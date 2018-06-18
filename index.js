@@ -1,5 +1,5 @@
 
-var empty_server_query = { database: "", rows: { discourse_part: [] } };
+var empty_server_query = { database: "", rows: { discourse_part: [] }, columns: ["annotations","content","contributionId","contributor","discoursePartIds","discourseParts","parentId","startTime","title","type","preceding_user","preceding_text"] };
 var blank_server_query = {propName: "blank", propValue: "{ \"database\": \"\", \"rows\": { \"discourse_part\": [] } }"};
 
 var model = {
@@ -143,7 +143,7 @@ var view = {
       $('#save_query').prop('disabled', model.query_saved_state !== "unsaved");
       $('.when_something_selected').attr('disabled', model.query_saved_state == "blank");
       $('#download_query_direct').attr('href',
-        baseUrl + "/browsing/action/downloadQueryCsv/discoursedb_data.csv?query=" +
+        baseUrl + "/browsing/action/downloadQueryCsvExpandible/discoursedb_data.csv?query=" +
         encodeURIComponent(JSON.stringify(model.query_content)));
       $('#csvexport_noanno').attr('href',
           baseUrl + "/browsing/action/" +
