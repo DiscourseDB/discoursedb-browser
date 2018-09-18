@@ -957,7 +957,7 @@ function update_grid() {
         start_spinner("Loading Data... Please wait");
         api.ajax.reload(function() {
             api.columns.adjust();
-	    api.draw();
+	          api.draw();
             set_resizable();
             hide_spinner();
         });
@@ -974,7 +974,7 @@ function update_grid() {
           //sScrollY: false,
           columns: [
             { data: "contributor" },
-            { data: "annotations" },
+            { data: "annotations", className: "dt-body-nowrap" },
             { data: "type" },
             { data: "content", width:"420" },
             { data: "title" },
