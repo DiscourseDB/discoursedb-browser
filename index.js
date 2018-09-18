@@ -933,11 +933,13 @@ authorizer["onSignIn"] = function() {
 
 
 function expand_features(features) {
+   features.sort()
    return features.map((r) => (r.type?("[" + r.type + ":&nbsp;" + r.value + "]"):r.value)).join(" ");
 }
 
 function expand_annotations(record) {
-  return record.map((r) => r.type + ":&nbsp;" + expand_features(r.features)).join(", ");
+  record.sort(function(a,b) { return (a.type<b.type?-1:(a.type>b.type?1:0)) })
+  return record.map((r) => r.type + ":&nbsp;" + expand_features(r.features)).join("<br> ");
 }
 
  /*
@@ -957,7 +959,7 @@ function update_grid() {
         start_spinner("Loading Data... Please wait");
         api.ajax.reload(function() {
             api.columns.adjust();
-	          api.draw();
+	    api.draw();
             set_resizable();
             hide_spinner();
         });
@@ -974,7 +976,7 @@ function update_grid() {
           //sScrollY: false,
           columns: [
             { data: "contributor" },
-            { data: "annotations", className: "dt-body-nowrap" },
+            { data: "annotations", className: "dt-body-nowrap wide-annos" },
             { data: "type" },
             { data: "content", width:"420" },
             { data: "title" },

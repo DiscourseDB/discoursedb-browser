@@ -16,9 +16,19 @@
 }
 #contributions td:hover
 {
-    overflow:initial;
+    overflow:visible;
     width:auto;
     background-color:white;
+}
+
+.wide-annos:hover
+{
+    overflow: visible; 
+    white-space: normal; 
+    border: 5px solid black;
+    width: auto;
+    position: absolute;
+    background-color:#FFF;
 }
 #contributions th:hover
 {
