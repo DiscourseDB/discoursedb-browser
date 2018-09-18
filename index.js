@@ -934,7 +934,7 @@ authorizer["onSignIn"] = function() {
 
 function expand_features(features) {
    features.sort()
-   return features.map((r) => (r.type?("[" + r.type + ":&nbsp;" + r.value + "]"):r.value)).join(" ");
+   return features.map((r) => ('<span style="background-color:#ddd">' + (r.type?("[" + r.type + ":&nbsp;" + r.value + "]"):r.value) + "</span>")).join(" ");
 }
 
 function expand_annotations(record) {
